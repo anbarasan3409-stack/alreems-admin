@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  # Admin Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alreems-admin
+    ports:
+      - "${PORT:-3002}:${PORT:-3002}"
+    env_file:
+      - .env.production
+    restart: unless-stopped
+
+
