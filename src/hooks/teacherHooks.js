@@ -95,7 +95,8 @@ export const useTeacherManagement = () => {
       return updatedTeacher;
     } catch (error) {
       console.error('Update teacher failed:', error);
-      ToastService.error('Failed to update teacher. Please try again.');
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || 'Failed to update teacher. Please try again.';
+      ToastService.error(errorMessage);
       throw error; // Re-throw to let modal handle it
     }
   };
@@ -137,7 +138,8 @@ export const useTeacherManagement = () => {
       return newTeacher;
     } catch (error) {
       console.error('Add teacher failed:', error);
-      ToastService.error('Failed to add teacher. Please try again.');
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || 'Failed to add teacher. Please try again.';
+      ToastService.error(errorMessage);
       throw error; // Re-throw to let modal handle it
     }
   };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, User, Mail, Phone, Building, MapPin, Calendar, Award } from 'lucide-react';
+import { X, User, Mail, Phone, Building, MapPin, Calendar, Award, BookOpen } from 'lucide-react';
 import { COLORS } from '@/theme/themeConstants';
 
 export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
@@ -8,6 +8,8 @@ export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
     email: '',
     phoneNumber: '',
     department: '',
+    subject: '',
+    designation: '',
     address: '',
     qualifications: '',
     experience: '',
@@ -96,6 +98,8 @@ export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
         email: '',
         phoneNumber: '',
         department: '',
+        subject: '',
+        designation: '',
         address: '',
         qualifications: '',
         experience: '',
@@ -114,8 +118,8 @@ export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
       name: '',
       email: '',
       phoneNumber: '',
-      subject: '',
       department: '',
+      subject: '',
       designation: '',
       address: '',
       qualifications: '',
@@ -252,6 +256,38 @@ export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
                 {errors.department && <p className="text-red-500 text-sm mt-1">{errors.department}</p>}
               </div>
 
+              {/* Subject */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <BookOpen size={16} className="inline mr-2" />
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent text-gray-900"
+                  placeholder="e.g., Mathematics, Brain Development"
+                />
+              </div>
+
+              {/* Designation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Award size={16} className="inline mr-2" />
+                  Designation
+                </label>
+                <input
+                  type="text"
+                  name="designation"
+                  value={formData.designation}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent text-gray-900"
+                  placeholder="e.g., Senior Instructor"
+                />
+              </div>
+
               {/* Joining Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -271,7 +307,7 @@ export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
               </div>
 
               {/* Qualifications */}
-              <div className="md:col-span-2 lg:col-span-1">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Award size={16} className="inline mr-2" />
                   Qualifications *
@@ -290,7 +326,7 @@ export default function AddTeacherModal({ isOpen, onClose, onSubmit }) {
               </div>
 
               {/* Experience */}
-              <div className="md:col-span-2 lg:col-span-1">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Experience *
                 </label>
