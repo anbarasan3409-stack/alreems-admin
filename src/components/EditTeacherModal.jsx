@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, User, Mail, Phone, Building, MapPin, Calendar, Award } from 'lucide-react';
+import { X, User, Mail, Phone, Building, MapPin, Calendar, Award, BookOpen } from 'lucide-react';
 import { COLORS } from '@/theme/themeConstants';
 
 export default function EditTeacherModal({ isOpen, onClose, onSubmit, teacher }) {
@@ -8,6 +8,8 @@ export default function EditTeacherModal({ isOpen, onClose, onSubmit, teacher })
     email: '',
     phoneNumber: '',
     department: '',
+    subject: '',
+    designation: '',
     address: '',
     qualifications: '',
     experience: '',
@@ -36,6 +38,8 @@ export default function EditTeacherModal({ isOpen, onClose, onSubmit, teacher })
         email: teacher.email || '',
         phoneNumber: teacher.phoneNumber || '',
         department: teacher.department || '',
+        subject: teacher.subject || '',
+        designation: teacher.designation || '',
         address: teacher.address || '',
         qualifications: teacher.qualifications || '',
         experience: teacher.experience || '',
@@ -124,6 +128,8 @@ export default function EditTeacherModal({ isOpen, onClose, onSubmit, teacher })
       email: '',
       phoneNumber: '',
       department: '',
+      subject: '',
+      designation: '',
       address: '',
       qualifications: '',
       experience: '',
@@ -262,6 +268,38 @@ export default function EditTeacherModal({ isOpen, onClose, onSubmit, teacher })
                   ))}
                 </select>
                 {errors.department && <p className="text-red-500 text-sm mt-1">{errors.department}</p>}
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <BookOpen size={16} className="inline mr-2" />
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  name="subject"
+                  value={formData.subject}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent text-gray-900 placeholder-gray-500"
+                  placeholder="e.g., Mathematics, Brain Development"
+                />
+              </div>
+
+              {/* Designation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Award size={16} className="inline mr-2" />
+                  Designation
+                </label>
+                <input
+                  type="text"
+                  name="designation"
+                  value={formData.designation}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary focus:border-transparent text-gray-900 placeholder-gray-500"
+                  placeholder="e.g., Senior Instructor"
+                />
               </div>
 
               {/* Status */}
