@@ -29,7 +29,7 @@ export const agoraTokenService = {
           params: {
             channelName,
             uid: 0,
-            role: userRole === 'host' ? 'teacher' : 'student' // Admin usually takes teacher/host role
+            role: (userRole === 'host' || userRole === 'admin' || userRole === 'teacher') ? 'teacher' : 'student'
           }
         });
         
