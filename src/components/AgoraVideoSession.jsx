@@ -13,16 +13,11 @@ import {
   VolumeX,
   Clock,
   PenTool,
-  Shield
+  Shield,
+  CheckCircle
 } from 'lucide-react';
 import { COLORS } from '@/theme/themeConstants';
 import dynamic from 'next/dynamic';
-
-// Import Agora RTC SDK dynamically to avoid SSR issues
-const AgoraRTC = dynamic(
-  () => import('agora-rtc-sdk-ng').then(mod => mod.default),
-  { ssr: false }
-);
 
 // Import Whiteboard wrapper with complete client-side isolation
 const WhiteboardWrapper = dynamic(
@@ -83,6 +78,7 @@ const AgoraVideoSession = ({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [volume, setVolume] = useState(50);
   const [videoReady, setVideoReady] = useState(false);
+  const [sessionCompleted, setSessionCompleted] = useState(false);
   
   // Whiteboard states
   const [showWhiteboard, setShowWhiteboard] = useState(false);
@@ -103,11 +99,8 @@ const AgoraVideoSession = ({
         videoElement.autoplay = true;
         videoElement.playsInline = true;
 
-        const playPromise = localVideoTrack.play(videoElement);
-        playPromise.then(() => {
-          setVideoReady(true);
-        }).catch((error) => {
-        });
+        await Promise.resolve(localVideoTrack.play(videoElement, { mirror: !isScreenSharing }));
+        setVideoReady(true);
       } catch (error) {
       }
     }
@@ -115,7 +108,7 @@ const AgoraVideoSession = ({
   
   // Fallback: try to play video whenever both element and track are available
   useEffect(() => {
-    if (localVideoRef.current && localVideoTrack && !videoReady) {
+    if (localVideoRef.current && localVideoTrack && isVideoEnabled && !videoReady) {
       const attemptPlayback = async () => {
         try {
           const videoElement = localVideoRef.current;
@@ -124,7 +117,7 @@ const AgoraVideoSession = ({
             videoElement.autoplay = true;
             videoElement.playsInline = true;
             
-            await localVideoTrack.play(videoElement);
+            await Promise.resolve(localVideoTrack.play(videoElement, { mirror: !isScreenSharing }));
             setVideoReady(true);
           }
         } catch (error) {
@@ -133,31 +126,32 @@ const AgoraVideoSession = ({
       
       setTimeout(attemptPlayback, 500);
     }
-  }, [localVideoRef.current, localVideoTrack, videoReady]);
+  }, [localVideoRef.current, localVideoTrack, isVideoEnabled, videoReady]);
 
   // Ensure video element is ready when component mounts
   useEffect(() => {
-    if (localVideoRef.current && isJoined && localVideoTrack) {
+    if (localVideoRef.current && isJoined && localVideoTrack && isVideoEnabled) {
       try {
         const videoElement = localVideoRef.current;
         videoElement.muted = true;
         videoElement.autoplay = true;
         videoElement.playsInline = true;
 
-        const playPromise = localVideoTrack.play(videoElement);
-        playPromise.then(() => {
-          setVideoReady(true);
-        }).catch((playError) => {
-          setTimeout(() => {
-            if (localVideoRef.current && localVideoTrack) {
-              localVideoTrack.play(localVideoRef.current).catch(() => {});
-            }
-          }, 1000);
-        });
+        Promise.resolve(localVideoTrack.play(videoElement, { mirror: !isScreenSharing }))
+          .then(() => {
+            setVideoReady(true);
+          })
+          .catch(() => {
+            setTimeout(() => {
+              if (localVideoRef.current && localVideoTrack) {
+                Promise.resolve(localVideoTrack.play(localVideoRef.current, { mirror: !isScreenSharing })).catch(() => {});
+              }
+            }, 1000);
+          });
       } catch (error) {
       }
     }
-  }, [isJoined, localVideoTrack]);
+  }, [isJoined, localVideoTrack, isVideoEnabled]);
 
   // Fetch session details, teacher info, and students
   useEffect(() => {
@@ -423,8 +417,7 @@ const AgoraVideoSession = ({
       await agoraClient.join(effectiveAppId, effectiveChannelName, token, uid);
       setIsJoined(true);
 
-      // Publish local audio/video tracks (created in disabled state)
-      await createAndPublishTracks(agoraClient);
+      // Admin observer joins in receive-only mode (tracks created lazily if Admin toggles mic/camera)
 
       // Broadcast Admin role to channel and query who else is there
       const broadcastAdminPresence = async () => {
@@ -517,12 +510,19 @@ const AgoraVideoSession = ({
         } else if (mediaType === 'audio') {
           existingUser.audioTrack = user.audioTrack;
           existingUser.hasAudio = true;
-          user.audioTrack.play();
         }
         
         newMap.set(user.uid, existingUser);
         return newMap;
       });
+
+      if (mediaType === 'audio' && user.audioTrack && !user.audioTrack.isPlaying) {
+        try {
+          user.audioTrack.play();
+        } catch (audioErr) {
+          console.warn('Audio play failed:', audioErr);
+        }
+      }
 
       // Play video track into corresponding DOM element
       if (mediaType === 'video' && user.videoTrack) {
@@ -530,13 +530,13 @@ const AgoraVideoSession = ({
           const videoContainer = document.getElementById(`remote-video-${user.uid}`);
           if (videoContainer) {
             videoContainer.innerHTML = '';
-            user.videoTrack.play(videoContainer);
+            user.videoTrack.play(videoContainer, { mirror: false });
           } else {
             setTimeout(() => {
               const retryContainer = document.getElementById(`remote-video-${user.uid}`);
               if (retryContainer) {
                 retryContainer.innerHTML = '';
-                user.videoTrack.play(retryContainer);
+                user.videoTrack.play(retryContainer, { mirror: false });
               }
             }, 500);
           }
@@ -588,28 +588,69 @@ const AgoraVideoSession = ({
     });
   };
 
-  // Control functions
+  // Control functions (lazily create & publish tracks only when Admin turns on mic/camera)
   const toggleVideo = async () => {
-    if (localVideoTrack) {
-      if (isVideoEnabled) {
-        await localVideoTrack.setEnabled(false);
-        setIsVideoEnabled(false);
+    try {
+      if (localVideoTrack) {
+        if (isVideoEnabled) {
+          await localVideoTrack.setEnabled(false);
+          setIsVideoEnabled(false);
+        } else {
+          await localVideoTrack.setEnabled(true);
+          setIsVideoEnabled(true);
+        }
       } else {
-        await localVideoTrack.setEnabled(true);
+        const AgoraRTCModule = await import('agora-rtc-sdk-ng');
+        const AgoraRTC = AgoraRTCModule.default;
+        const videoTrack = await AgoraRTC.createCameraVideoTrack({
+          encoderConfig: {
+            width: 640,
+            height: 480,
+            frameRate: 15,
+            bitrateMin: 400,
+            bitrateMax: 1000,
+          }
+        });
+        setLocalVideoTrack(videoTrack);
+        const currentClient = clientRef.current;
+        if (currentClient) {
+          await currentClient.publish([videoTrack]);
+        }
         setIsVideoEnabled(true);
       }
+    } catch (err) {
+      console.warn('Admin could not enable camera:', err);
     }
   };
 
   const toggleAudio = async () => {
-    if (localAudioTrack) {
-      if (isAudioEnabled) {
-        await localAudioTrack.setEnabled(false);
-        setIsAudioEnabled(false);
+    try {
+      if (localAudioTrack) {
+        if (isAudioEnabled) {
+          await localAudioTrack.setEnabled(false);
+          setIsAudioEnabled(false);
+        } else {
+          await localAudioTrack.setEnabled(true);
+          setIsAudioEnabled(true);
+        }
       } else {
-        await localAudioTrack.setEnabled(true);
+        const AgoraRTCModule = await import('agora-rtc-sdk-ng');
+        const AgoraRTC = AgoraRTCModule.default;
+        const audioTrack = await AgoraRTC.createMicrophoneAudioTrack({
+          encoderConfig: "speech_standard",
+          AEC: true,
+          ANS: true,
+          AGC: false,
+        });
+        setLocalAudioTrack(audioTrack);
+        const currentClient = clientRef.current;
+        if (currentClient) {
+          await currentClient.publish([audioTrack]);
+        }
         setIsAudioEnabled(true);
       }
+    } catch (err) {
+      console.warn('Admin could not enable microphone:', err);
     }
   };
 
@@ -920,17 +961,80 @@ const AgoraVideoSession = ({
         const container = document.getElementById(`remote-video-${remoteTeacher.uid}`);
         if (container) {
           container.innerHTML = '';
-          remoteTeacher.videoTrack.play(container);
+          remoteTeacher.videoTrack.play(container, { mirror: false });
         }
       }, 150);
       return () => clearTimeout(timer);
     }
   }, [remoteTeacher?.uid, remoteTeacher?.hasVideo, remoteTeacher?.videoTrack]);
 
+  // Poll session status so if the session ends/completes while Admin is observing, show completed message & redirect
+  useEffect(() => {
+    if (!sessionId || sessionCompleted) return;
+    let cancelled = false;
+
+    const checkSessionStatus = async () => {
+      try {
+        const response = await sessionServices.getSessionById(sessionId);
+        if (cancelled) return;
+        const sessionData = response?.session || response;
+        const st = String(sessionData?.status || sessionData?.Status || '').toLowerCase();
+        if (st === 'completed' || st === 'cancelled') {
+          setSessionCompleted(true);
+          try {
+            if (localVideoTrack) localVideoTrack.close();
+            if (localAudioTrack) localAudioTrack.close();
+            if (clientRef.current) {
+              await clientRef.current.leave();
+              clientRef.current.removeAllListeners();
+              clientRef.current = null;
+            }
+          } catch (e) {}
+          setTimeout(() => {
+            if (!cancelled) {
+              if (onLeave) onLeave();
+              else window.location.href = '/dashboard';
+            }
+          }, 3000);
+        }
+      } catch (e) {}
+    };
+
+    const interval = setInterval(checkSessionStatus, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [sessionId, sessionCompleted]);
+
+  // Render completed state (session ended while Admin was watching)
+  if (sessionCompleted) {
+    return (
+      <div className="fixed inset-0 bg-gray-900 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+          <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle size={32} className="text-emerald-400" />
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-2">The Session has been completed</h3>
+          <p className="text-gray-400 text-sm mb-6">
+            Redirecting you back to the dashboard automatically...
+          </p>
+          <button
+            onClick={() => (onLeave ? onLeave() : (window.location.href = '/dashboard'))}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors cursor-pointer"
+            style={{ backgroundColor: '#2563eb' }}
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Render loading state
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
         <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -945,7 +1049,7 @@ const AgoraVideoSession = ({
   // Render error state
   if (error) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+      <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.75)' }}>
         <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
           <div className="text-center">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
