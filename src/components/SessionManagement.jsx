@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Play, Calendar, Clock, Users, Video, Plus, ChevronRight, Download, ExternalLink, BookOpen, TrendingUp, CheckCircle, X, Zap, Eye, Edit, Trash2, User, FileText } from 'lucide-react';
+import { Play, Calendar, Clock, Users, Video, Plus, ChevronRight, Download, ExternalLink, BookOpen, TrendingUp, CheckCircle, X, Zap, Eye, Edit, Trash2, User, FileText, ClipboardList } from 'lucide-react';
 import { COLORS } from '@/theme/themeConstants';
 import AddSessionModal from './AddSessionModal';
 import EditSessionModal from './EditSessionModal';
 import ConfirmationModal from './ConfirmationModal';
+import SessionAttendanceModal from './SessionAttendanceModal';
 import { useSessionManagement } from '@/hooks/sessionHooks';
 
 export default function SessionManagement() {
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [attendanceSession, setAttendanceSession] = useState(null);
   
   const {
     sessions,
@@ -266,6 +268,13 @@ export default function SessionManagement() {
 
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setAttendanceSession(session)}
+                        className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Attendance Report"
+                      >
+                        <ClipboardList size={16} />
+                      </button>
+                      <button
                         onClick={() => handleViewSessionDetails(session.id)}
                         className="p-2 text-gray-500 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors"
                         title="View Details"
@@ -385,6 +394,13 @@ export default function SessionManagement() {
                   <div className="flex items-center gap-3 ml-4">
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setAttendanceSession(session)}
+                        className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Attendance Report"
+                      >
+                        <ClipboardList size={16} />
+                      </button>
+                      <button
                         onClick={() => handleViewSessionDetails(session.id)}
                         className="p-2 text-gray-500 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors"
                         title="View Details"
@@ -455,6 +471,13 @@ export default function SessionManagement() {
         message={`Are you sure you want to delete "${sessionToDelete?.title}"? This action cannot be undone.`}
         confirmText="Delete Session"
         confirmStyle="danger"
+      />
+
+      {/* Session Attendance Report Modal */}
+      <SessionAttendanceModal
+        isOpen={Boolean(attendanceSession)}
+        onClose={() => setAttendanceSession(null)}
+        session={attendanceSession}
       />
     </div>
   );
