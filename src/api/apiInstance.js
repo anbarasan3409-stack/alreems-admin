@@ -35,6 +35,9 @@ export const EndPoints ={
     // Session endpoints
     SESSIONS: '/admin/sessions',
     SESSION_BY_ID: (id) => `/admin/sessions/${id}`,
+    SESSION_ATTENDANCE: (sessionId) => `/admin/attendance/session/${sessionId}`,
+    COURSE_ATTENDANCE: (courseId) => `/admin/attendance/course/${courseId}`,
+    STUDENT_ATTENDANCE: (studentId) => `/admin/attendance/student/${studentId}`,
     
     // Payment endpoints
     PAYMENTS: '/admin/payments',
