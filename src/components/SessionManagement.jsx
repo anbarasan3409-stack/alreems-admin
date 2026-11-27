@@ -275,9 +275,9 @@ export default function SessionManagement() {
                         <ClipboardList size={16} />
                       </button>
                       <button
-                        onClick={() => handleViewSessionDetails(session.id)}
+                        onClick={() => setAttendanceSession(session)}
                         className="p-2 text-gray-500 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors"
-                        title="View Details"
+                        title="View Attendance"
                       >
                         <Eye size={16} />
                       </button>
@@ -401,9 +401,9 @@ export default function SessionManagement() {
                         <ClipboardList size={16} />
                       </button>
                       <button
-                        onClick={() => handleViewSessionDetails(session.id)}
+                        onClick={() => setAttendanceSession(session)}
                         className="p-2 text-gray-500 hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors"
-                        title="View Details"
+                        title="View Attendance"
                       >
                         <Eye size={16} />
                       </button>
